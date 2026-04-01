@@ -41,7 +41,24 @@ function initializeSpreadsheet() {
   const defaultSheet = ss.getSheetByName('シート1');
   if (defaultSheet) ss.deleteSheet(defaultSheet);
 
+  protectSensitiveSheets(ss);
+
   Logger.log('スプレッドシートの初期化が完了しました');
+}
+
+// 機密シートを保護（オーナーのみ編集可）
+function protectSensitiveSheets(ss) {
+  [SHEET.TALENT_MASTER, SHEET.DEALS].forEach(function(sheetName) {
+    const sheet = ss.getSheetByName(sheetName);
+    if (!sheet) return;
+
+    sheet.getProtections(SpreadsheetApp.ProtectionType.SHEET).forEach(function(p) { p.remove(); });
+
+    const protection = sheet.protect();
+    protection.setDescription(sheetName + ' - オーナーのみ編集可');
+    protection.removeEditors(protection.getEditors());
+    Logger.log(sheetName + ' を保護しました');
+  });
 }
 
 function setupSheetHeader(sheet, headers) {

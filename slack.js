@@ -52,18 +52,17 @@ function postSlackDMSafe(memberId, text) {
 // ==========================================
 
 function notifyDealRegistered(dealId, formData, assessment) {
-  const talent = formData.talentId ? getTalentById(formData.talentId) : null;
+  const talent     = formData.talentId ? getTalentById(formData.talentId) : null;
   const scaleLabel = { '小': '', '中': ':warning:', '大': ':sos:' }[assessment.scale] || '';
+  const sheetUrl   = SpreadsheetApp.getActiveSpreadsheet().getUrl();
 
+  // 企業名・タレント名・案件名はSlackに送信しない（情報漏洩対策）
   const lines = [
     scaleLabel + ' *新規案件が登録されました*',
     '',
     '*案件ID*: ' + dealId,
-    '*案件名*: ' + formData.dealName,
-    '*企業名*: ' + formData.companyName,
-    '*タレント*: ' + (formData.talentName || '未定'),
     '*種別*: ' + formData.dealType,
-    '*規模*: ' + assessment.scale + '　　' + (assessment.reason || ''),
+    '*規模*: ' + assessment.scale + '　' + (assessment.reason || ''),
     '*エスカレーション先*: ' + assessment.escalateTo.join('・'),
     '*返答期限*: ' + (formData.replyLimit || '未設定'),
     '*実施予定日*: ' + (formData.execDate || '未定'),
@@ -74,6 +73,9 @@ function notifyDealRegistered(dealId, formData, assessment) {
     lines.push('*:triangular_flag_on_post: リスクフラグ*');
     assessment.riskFlags.forEach(function(f) { lines.push('• ' + f); });
   }
+
+  lines.push('');
+  lines.push(':spreadsheet: 詳細はシートで確認: ' + sheetUrl);
 
   const text = lines.join('\n');
 
@@ -153,20 +155,25 @@ function dailyDealReminder() {
     if (!staffTalent || !staffTalent['Slack Member ID']) return;
 
     const items = alertsByStaff[staffName];
+    const sheetUrl = SpreadsheetApp.getActiveSpreadsheet().getUrl();
     const lines = [
       '*:calendar: 案件リマインド — ' + formatDate(today) + '*',
       '',
     ];
 
+    // 案件名・企業名はSlackに送信しない（情報漏洩対策）
     items.forEach(function(item) {
       item.alerts.forEach(function(alert) {
         lines.push(
-          alert.emoji + ' *[' + item.deal['案件ID'] + '] ' + item.deal['案件名'] + '*' +
+          alert.emoji + ' *[' + item.deal['案件ID'] + ']*' +
           '  ' + alert.type + ': `' + alert.date + '`' +
           '  ステータス: ' + item.deal['ステータス']
         );
       });
     });
+
+    lines.push('');
+    lines.push(':spreadsheet: 詳細はシートで確認: ' + sheetUrl);
 
     postSlackDMSafe(staffTalent['Slack Member ID'], lines.join('\n'));
     Logger.log('リマインド送信: ' + staffName + '（' + items.length + '件）');
